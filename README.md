@@ -1,10 +1,12 @@
 # Horloge & météo e-paper — CrowPanel 5.79"
 
+**Français** · [English](README.en.md)
+
 Horloge et station météo minimaliste sur écran **e-paper CrowPanel ESP32 5.79"**
 (792×272, ESP32-S3), programmée en **PlatformIO**. Heure synchronisée par NTP,
 météo via OpenWeatherMap, navigation par la roue crantée entre plusieurs pages.
 
-> 📷 _(ajoute ici une photo de ton montage)_
+![Montage horloge e-paper CrowPanel 5.79](images/montage.jpg)
 
 ## Fonctionnalités
 
