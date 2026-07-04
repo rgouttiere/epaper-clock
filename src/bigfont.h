@@ -1,5 +1,4 @@
-// Généré : Arial Narrow Bold, chiffres nets pour l'horloge.
-// Index 0-9 = chiffres, 10 = ':'
+// Genere par tools/genfont.py - gros chiffres horloge (page principale).
 #ifndef BIGFONT_H
 #define BIGFONT_H
 #include <stdint.h>

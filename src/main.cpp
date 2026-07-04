@@ -33,7 +33,7 @@ struct DayFc   { char label[4]; int tmin; int tmax; int icon; }; // prévisions 
 struct Weather {
   bool valid = false;
   Slot slots[4]; // [0]=maintenant, [1]=+3h, [2]=+6h, [3]=+9h
-  char desc[24] = "";
+  char desc[40] = ""; // UTF-8 (accents) -> plus d'octets
   int  humidity = 0;
   int  windKmh  = 0;
   char sunrise[6] = "--:--";
@@ -44,11 +44,11 @@ struct Weather {
 
 // --- Noms français ---
 const char* JOURS_ABR[] = {"dim","lun","mar","mer","jeu","ven","sam"};
-const char* MOIS_ABR[]  = {"jan","fev","mars","avr","mai","juin","juil",
-                           "aout","sept","oct","nov","dec"};
+const char* MOIS_ABR[]  = {"jan","fév","mars","avr","mai","juin","juil",
+                           "août","sept","oct","nov","déc"};
 const char* JOURS[] = {"dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"};
-const char* MOIS[]  = {"janvier","fevrier","mars","avril","mai","juin","juillet",
-                       "aout","septembre","octobre","novembre","decembre"};
+const char* MOIS[]  = {"janvier","février","mars","avril","mai","juin","juillet",
+                       "août","septembre","octobre","novembre","décembre"};
 
 // --- Navigation (switch 5 directions, actif à l'état bas) ---
 #define KEY_EXIT 1
@@ -63,7 +63,7 @@ enum Mode { NORMAL, MENU };
 Mode mode = NORMAL;
 int  menuSel = 0;
 const char* PAGE_NAMES[NUM_PAGES] = {
-  "Horloge + meteo", "Horloge plein ecran", "Graphe 24h", "Previsions 5 jours"
+  "Horloge + météo", "Horloge plein écran", "Graphe 24h", "Prévisions 5 jours"
 };
 
 // --- État ---
@@ -82,7 +82,6 @@ void partialRefresh();
 bool keyEdge(int pin, int &prev);
 int  iconFromCode(const String &code);
 void setDesc(const char* s);
-void deaccent(const char* in, char* out, size_t outSize);
 void drawDegree(uint16_t x, uint16_t y, uint16_t r);
 
 // ---------- Utils ----------
@@ -91,44 +90,11 @@ void drawDegree(uint16_t x, uint16_t y, uint16_t r) {
   EPD_DrawCircle(x, y, r-1, BLACK, false);
 }
 
-// Convertit UTF-8 (accents français) en ASCII, capitalise la 1re lettre.
-void deaccent(const char* in, char* out, size_t outSize) {
-  size_t o = 0;
-  for (size_t i = 0; in[i] && o < outSize-1; i++) {
-    unsigned char c = in[i];
-    char m = 0;
-    if (c == 0xC3 && in[i+1]) {
-      unsigned char n = in[++i];
-      switch (n) {
-        case 0xA0: case 0xA1: case 0xA2: case 0xA3: case 0xA4: case 0xA5: m='a'; break;
-        case 0x80: case 0x81: case 0x82: case 0x83: case 0x84: case 0x85: m='A'; break;
-        case 0xA7: m='c'; break; case 0x87: m='C'; break;
-        case 0xA8: case 0xA9: case 0xAA: case 0xAB: m='e'; break;
-        case 0x88: case 0x89: case 0x8A: case 0x8B: m='E'; break;
-        case 0xAC: case 0xAD: case 0xAE: case 0xAF: m='i'; break;
-        case 0x8C: case 0x8D: case 0x8E: case 0x8F: m='I'; break;
-        case 0xB2: case 0xB3: case 0xB4: case 0xB5: case 0xB6: m='o'; break;
-        case 0x92: case 0x93: case 0x94: case 0x95: case 0x96: m='O'; break;
-        case 0xB9: case 0xBA: case 0xBB: case 0xBC: m='u'; break;
-        case 0x99: case 0x9A: case 0x9B: case 0x9C: m='U'; break;
-        default: m='?'; break;
-      }
-    } else if (c == 0xC2 && in[i+1]) {
-      i++; continue; // ignore ° et autres symboles Latin-1
-    } else if (c < 0x80) {
-      m = (char)c;
-    } else {
-      continue; // ignore octets multi-byte inconnus
-    }
-    if (o == 0 && m >= 'a' && m <= 'z') m -= 32; // capitalise 1re lettre
-    out[o++] = m;
-  }
-  out[o] = 0;
-}
-
 void setDesc(const char* s) {
   if (!s) { weather.desc[0] = 0; return; }
-  deaccent(s, weather.desc, sizeof(weather.desc));
+  strncpy(weather.desc, s, sizeof(weather.desc) - 1);
+  weather.desc[sizeof(weather.desc) - 1] = 0;
+  if (weather.desc[0] >= 'a' && weather.desc[0] <= 'z') weather.desc[0] -= 32; // capitalise
 }
 
 int iconFromCode(const String &code) {
@@ -271,8 +237,8 @@ void drawPageMain() {
 
   // ---- Panneau gauche : horloge ----
   EPD_ShowBigTime(14, 22, hhmm, BLACK);                  // grande police nette, 128 px
-  if (weather.valid) EPD_ShowString(22, 162, weather.desc, 24, BLACK);
-  EPD_ShowStringScaled(22, 200, dateStr, 24, 2, BLACK);  // date agrandie
+  if (weather.valid) EPD_ShowText(22, 162, weather.desc, BLACK);
+  EPD_ShowTextScaled(22, 196, dateStr, 2, BLACK);        // date agrandie (accents)
 
   // Séparateur vertical principal
   EPD_DrawLine(372, 12, 372, 260, BLACK);
@@ -285,8 +251,8 @@ void drawPageMain() {
     for (int i = 0; i < 4; i++) {
       int cx = X0 + i * COLW;
       // Label (heure)
-      int lw = strlen(weather.slots[i].label) * 12;
-      EPD_ShowString(cx + (COLW - lw) / 2, 16, weather.slots[i].label, 24, BLACK);
+      int lw = EPD_TextWidth(weather.slots[i].label);
+      EPD_ShowText(cx + (COLW - lw) / 2, 16, weather.slots[i].label, BLACK);
       // Icône réduite
       EPD_ShowPictureResized(cx + (COLW - ICON) / 2, 46, 128, 128, ICON, ICON,
                              Weather_Num[weather.slots[i].icon], WHITE);
@@ -302,11 +268,11 @@ void drawPageMain() {
 
     // ---- Bandeau d'infos en bas ----
     EPD_DrawLine(380, 192, 788, 192, BLACK);
-    char line1[40], line2[40];
-    snprintf(line1, sizeof(line1), "Humidite %d%%    Vent %d km/h", weather.humidity, weather.windKmh);
+    char line1[48], line2[48];
+    snprintf(line1, sizeof(line1), "Humidité %d%%    Vent %d km/h", weather.humidity, weather.windKmh);
     snprintf(line2, sizeof(line2), "Lever %s    Coucher %s", weather.sunrise, weather.sunset);
-    EPD_ShowString(392, 204, line1, 24, BLACK);
-    EPD_ShowString(392, 232, line2, 24, BLACK);
+    EPD_ShowText(392, 204, line1, BLACK);
+    EPD_ShowText(392, 232, line2, BLACK);
   }
 }
 
@@ -322,15 +288,15 @@ void drawPageClock() {
   // Heure XL centrée (largeur "HH:MM" = 553 px)
   EPD_ShowBigTimeXL((792 - 553) / 2, 8, hhmm, BLACK);
   // Date centrée en dessous
-  int dw = strlen(dateStr) * 24; // taille 24 x2 -> 24 px/char
-  EPD_ShowStringScaled((792 - dw) / 2, 224, dateStr, 24, 2, BLACK);
+  int dw = EPD_TextWidth(dateStr) * 2;
+  EPD_ShowTextScaled((792 - dw) / 2, 224, dateStr, 2, BLACK);
 }
 
 // PAGE 3 : graphe température + pluie sur 24h
 void drawPageGraph() {
-  EPD_ShowString(12, 8, "Temperature 24h", 24, BLACK);
+  EPD_ShowText(12, 8, "Température 24h", BLACK);
   if (!weather.valid || weather.graphN < 2) {
-    EPD_ShowString(12, 120, "Pas de donnees", 24, BLACK);
+    EPD_ShowText(12, 120, "Pas de données", BLACK);
     return;
   }
   int n = weather.graphN;
@@ -356,38 +322,35 @@ void drawPageGraph() {
   for (int i = 0; i < n; i++) {
     int px = GX(i), py = GY(weather.graph[i].temp);
     EPD_DrawCircle(px, py, 3, BLACK, true);
-    char b[8]; snprintf(b, sizeof(b), "%d", weather.graph[i].temp);
-    EPD_ShowString(px - (int)strlen(b) * 6, py - 32, b, 24, BLACK);
+    char b[8]; snprintf(b, sizeof(b), "%d°", weather.graph[i].temp);
+    EPD_ShowText(px - EPD_TextWidth(b) / 2, py - 32, b, BLACK);
     char h[6]; snprintf(h, sizeof(h), "%02dh", weather.graph[i].hour);
-    EPD_ShowString(px - 18, 246, h, 24, BLACK);
+    EPD_ShowText(px - EPD_TextWidth(h) / 2, 246, h, BLACK);
   }
-  EPD_ShowString(x1 - 90, 214, "pluie", 24, BLACK);
+  EPD_ShowText(x1 - 60, 214, "pluie", BLACK);
   #undef GX
   #undef GY
 }
 
 // PAGE 4 : prévisions 5 jours
 void drawPage5Days() {
-  EPD_ShowString(12, 8, "Previsions 5 jours", 24, BLACK);
+  EPD_ShowText(12, 8, "Prévisions 5 jours", BLACK);
   if (!weather.valid || weather.daysN == 0) {
-    EPD_ShowString(12, 120, "Pas de donnees", 24, BLACK);
+    EPD_ShowText(12, 120, "Pas de données", BLACK);
     return;
   }
   int n = weather.daysN;
   int colw = 792 / n;
   for (int i = 0; i < n; i++) {
     int cx = i * colw;
-    int lw = strlen(weather.days[i].label) * 12;
-    EPD_ShowString(cx + (colw - lw) / 2, 44, weather.days[i].label, 24, BLACK);
+    int lw = EPD_TextWidth(weather.days[i].label);
+    EPD_ShowText(cx + (colw - lw) / 2, 44, weather.days[i].label, BLACK);
     EPD_ShowPictureResized(cx + (colw - 80) / 2, 74, 128, 128, 80, 80,
                            Weather_Num[weather.days[i].icon], WHITE);
-    char mx[6]; snprintf(mx, sizeof(mx), "%d", weather.days[i].tmax);
-    char mn[6]; snprintf(mn, sizeof(mn), "%d", weather.days[i].tmin);
-    int wx = strlen(mx) * 12, wn = strlen(mn) * 12;
-    int tx = cx + (colw - (wx + 12)) / 2;
-    EPD_ShowString(tx, 168, mx, 24, BLACK); drawDegree(tx + wx + 6, 174, 4);
-    int nx = cx + (colw - (wn + 12)) / 2;
-    EPD_ShowString(nx, 206, mn, 24, BLACK); drawDegree(nx + wn + 6, 212, 4);
+    char mx[8]; snprintf(mx, sizeof(mx), "%d°", weather.days[i].tmax);
+    char mn[8]; snprintf(mn, sizeof(mn), "%d°", weather.days[i].tmin);
+    EPD_ShowText(cx + (colw - EPD_TextWidth(mx)) / 2, 168, mx, BLACK);
+    EPD_ShowText(cx + (colw - EPD_TextWidth(mn)) / 2, 206, mn, BLACK);
     if (i < n - 1) EPD_DrawLine(cx + colw, 20, cx + colw, 250, BLACK);
   }
 }
@@ -408,19 +371,19 @@ void drawScreen() {
 void drawMenu() {
   Paint_NewImage(ImageBW, EPD_W, EPD_H, Rotation, WHITE);
   Paint_Clear(WHITE);
-  EPD_ShowString(30, 12, "Choisir l'affichage :", 24, BLACK);
+  EPD_ShowText(30, 12, "Choisir l'affichage :", BLACK);
   EPD_DrawLine(30, 44, 762, 44, BLACK);
-  const int y0 = 58, lh = 52;
+  const int y0 = 56, lh = 50;
   for (int i = 0; i < NUM_PAGES; i++) {
     int y = y0 + i * lh;
     if (i == menuSel) {
-      EPD_DrawRectangle(30, y - 4, 762, y + 44, BLACK, 1); // barre pleine
-      EPD_ShowStringScaled(46, y, PAGE_NAMES[i], 24, 2, WHITE); // texte blanc
+      EPD_DrawRectangle(30, y - 4, 762, y + 50, BLACK, 1); // barre pleine
+      EPD_ShowTextScaled(46, y, PAGE_NAMES[i], 2, WHITE);  // texte blanc
     } else {
-      EPD_ShowStringScaled(46, y, PAGE_NAMES[i], 24, 2, BLACK);
+      EPD_ShowTextScaled(46, y, PAGE_NAMES[i], 2, BLACK);
     }
   }
-  EPD_ShowString(30, 250, "Tourner: choisir   OK: valider   Exit: annuler", 24, BLACK);
+  EPD_ShowText(30, 250, "Tourner: choisir   OK: valider   Exit: annuler", BLACK);
 }
 
 // Lecture d'un bouton : front descendant confirmé (anti-glitch), après 2 s

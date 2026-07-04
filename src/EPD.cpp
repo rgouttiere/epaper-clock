@@ -3,6 +3,7 @@
 #include "ChivoMonoFont.h"
 #include "bigfont.h"
 #include "bigfontxl.h"
+#include "textfont.h"
 #include "string.h"
 #include <map>
 
@@ -466,6 +467,72 @@ uint16_t EPD_ShowBigTimeXL(uint16_t x, uint16_t y, const char *s, uint16_t color
         s++;
     }
     return x - x0;
+}
+
+// ---------- Texte accentué (UTF-8) ----------
+static uint32_t utf8_next(const char **p) {
+    const unsigned char *s = (const unsigned char *)(*p);
+    unsigned char b = s[0];
+    uint32_t cp; int n;
+    if (b < 0x80)            { cp = b;        n = 1; }
+    else if ((b & 0xE0) == 0xC0) { cp = b & 0x1F; n = 2; }
+    else if ((b & 0xF0) == 0xE0) { cp = b & 0x0F; n = 3; }
+    else if ((b & 0xF8) == 0xF0) { cp = b & 0x07; n = 4; }
+    else                     { cp = b;        n = 1; }
+    for (int i = 1; i < n; i++) {
+        if ((s[i] & 0xC0) != 0x80) { n = i; break; }
+        cp = (cp << 6) | (s[i] & 0x3F);
+    }
+    *p += n;
+    return cp;
+}
+
+static int textIndex(uint32_t cp) {
+    for (int i = 0; i < TEXTFONT_COUNT; i++)
+        if (textfont_cp[i] == cp) return i;
+    return -1;
+}
+
+static uint16_t drawText(uint16_t x, uint16_t y, const char *utf8, uint8_t scale, uint16_t color) {
+    uint16_t x0 = x;
+    const char *p = utf8;
+    while (*p) {
+        uint32_t cp = utf8_next(&p);
+        int idx = textIndex(cp);
+        if (idx < 0) idx = textIndex('?');
+        if (idx < 0) continue;
+        uint16_t w = textfont_width[idx];
+        const uint8_t *bmp = textfont_bitmap + textfont_offset[idx];
+        uint16_t bpr = (w + 7) / 8;
+        for (uint16_t row = 0; row < TEXTFONT_HEIGHT; row++)
+            for (uint16_t col = 0; col < w; col++)
+                if (bmp[row * bpr + (col >> 3)] & (0x80 >> (col & 7))) {
+                    if (scale == 1) Paint_SetPixel(x + col, y + row, color);
+                    else for (uint8_t dx = 0; dx < scale; dx++)
+                             for (uint8_t dy = 0; dy < scale; dy++)
+                                 Paint_SetPixel(x + col*scale + dx, y + row*scale + dy, color);
+                }
+        x += w * scale;
+    }
+    return x - x0;
+}
+
+uint16_t EPD_ShowText(uint16_t x, uint16_t y, const char *utf8, uint16_t color) {
+    return drawText(x, y, utf8, 1, color);
+}
+uint16_t EPD_ShowTextScaled(uint16_t x, uint16_t y, const char *utf8, uint8_t scale, uint16_t color) {
+    return drawText(x, y, utf8, scale, color);
+}
+uint16_t EPD_TextWidth(const char *utf8) {
+    uint16_t w = 0;
+    const char *p = utf8;
+    while (*p) {
+        uint32_t cp = utf8_next(&p);
+        int idx = textIndex(cp);
+        if (idx < 0) idx = textIndex('?');
+        if (idx >= 0) w += textfont_width[idx];
+    }
+    return w;
 }
 
 /*******************************************************************

@@ -1,4 +1,4 @@
-// Arial Narrow Bold XL - horloge plein ecran.
+// Genere par tools/genfont.py - horloge plein ecran.
 #ifndef BIGFONTXL_H
 #define BIGFONTXL_H
 #include <stdint.h>

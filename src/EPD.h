@@ -56,4 +56,10 @@ uint16_t EPD_ShowBigTime(uint16_t x, uint16_t y, const char *s, uint16_t color);
 // Version XL (plein écran, bigfontxl.h).
 uint16_t EPD_ShowBigTimeXL(uint16_t x, uint16_t y, const char *s, uint16_t color);
 
+// Texte accentué (UTF-8, textfont.h). Renvoie la largeur dessinée.
+uint16_t EPD_ShowText(uint16_t x, uint16_t y, const char *utf8, uint16_t color);
+uint16_t EPD_ShowTextScaled(uint16_t x, uint16_t y, const char *utf8, uint8_t scale, uint16_t color);
+uint16_t EPD_TextWidth(const char *utf8);        // largeur native
+#define TEXTFONT_NATIVE_H 26
+
 #endif

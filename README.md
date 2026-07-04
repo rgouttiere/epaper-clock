@@ -64,7 +64,7 @@ Les gros chiffres sont générés depuis une police TTF (Roboto Condensed par d�
 
 ```bash
 pip install pillow
-python3 tools/genfont.py /chemin/vers/police.ttf   # met à jour src/bigfont.h et src/bigfontxl.h
+python3 tools/genfont.py /chemin/vers/police.ttf   # met à jour bigfont.h, bigfontxl.h, textfont.h
 ```
 
 ## Pièges rencontrés (utile si tu reprends cette carte)
@@ -79,8 +79,9 @@ python3 tools/genfont.py /chemin/vers/police.ttf   # met à jour src/bigfont.h e
   l'appeler à chaque minute (ça casse le différentiel et crée du ghosting). Init
   une fois, puis `EPD_Display` + `EPD_PartUpdate` pour les mises à jour rapides,
   et un full refresh périodique pour nettoyer.
-- **Accents** : les polices embarquées n'ont pas les caractères accentués ; le
-  texte UTF-8 est converti en ASCII (`deaccent()`).
+- **Accents** : la police de texte est générée avec les caractères français
+  accentués (`src/textfont.h`) et rendue par un moteur **UTF-8** (`EPD_ShowText`),
+  donc « Température », « dégagé », « août »… s'affichent correctement.
 - **Roue crantée** = switch 5 directions lu comme des boutons actifs à l'état bas
   (GPIO 4 = suivant, 6 = précédent, 5 = OK, 1 = exit).
 

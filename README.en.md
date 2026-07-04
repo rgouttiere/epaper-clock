@@ -64,7 +64,7 @@ The large digits are generated from a TTF font (Roboto Condensed by default):
 
 ```bash
 pip install pillow
-python3 tools/genfont.py /path/to/font.ttf   # updates src/bigfont.h and src/bigfontxl.h
+python3 tools/genfont.py /path/to/font.ttf   # updates bigfont.h, bigfontxl.h, textfont.h
 ```
 
 ## Gotchas (useful if you pick up this board)
@@ -79,8 +79,9 @@ python3 tools/genfont.py /path/to/font.ttf   # updates src/bigfont.h and src/big
   minute (it breaks the differential and causes ghosting). Init once, then use
   `EPD_Display` + `EPD_PartUpdate` for fast updates, plus a periodic full refresh
   to clean up.
-- **Accents:** the embedded fonts have no accented characters; UTF-8 text is
-  converted to ASCII (`deaccent()`).
+- **Accents:** the text font is generated with French accented characters
+  (`src/textfont.h`) and drawn by a **UTF-8** renderer (`EPD_ShowText`), so
+  "Température", "dégagé", "août"… render correctly.
 - **Rotary wheel** = a 5-way switch read as active-low buttons
   (GPIO 4 = next, 6 = previous, 5 = OK, 1 = exit).
 
